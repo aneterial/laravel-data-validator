@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DataValidator;
 
+use BackedEnum;
 use DataValidator\Attributes\Interfaces\RequestPropertyInterface;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionProperty;
+use ValueError;
 
 final readonly class ValidationManager
 {
@@ -91,39 +93,6 @@ final readonly class ValidationManager
     }
 
     /**
-     * @template T of object
-     *
-     * @param class-string<T> $class
-     * @param array<int|string, mixed> $data
-     * @param value-of<RequestPropertyInterface::ALL_TYPES> $type
-     *
-     * @return ($isList is true ? T[] : T)
-     *
-     * @throws ValidationException
-     */
-    private function validateAndHydrateChild(string $class, array $data, string $type, bool $isList = false): object|array
-    {
-        $rules = $this->extractRules(new $class())[$type] ?? [];
-        $hydrateList = [];
-
-        if (!$isList) {
-            $data = [$data];
-        }
-
-        foreach ($data as $item) {
-            $hydrateObject = new $class();
-            $this->hydrate(
-                object: $hydrateObject,
-                withData: $this->validateData(data: $item, rules: $rules),
-            );
-
-            $hydrateList[] = $hydrateObject;
-        }
-
-        return $isList ? $hydrateList : current($hydrateList);
-    }
-
-    /**
      * @param array<int|string, mixed> $data
      * @param array<int|string, mixed> $rules
      *
@@ -198,6 +167,11 @@ final readonly class ValidationManager
 
         return match (true) {
             is_null($data) => null,
+            enum_exists($typeName) => $this->validateAndHydrateEnum(
+                enum: $typeName,
+                data: $data,
+                property: $attribute->getProperty()
+            ),
             class_exists($typeName) => $this->validateAndHydrateChild(
                 class: $typeName,
                 data: $data,
@@ -211,5 +185,51 @@ final readonly class ValidationManager
             ),
             default => $data
         };
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $class
+     * @param array<int|string, mixed> $data
+     * @param value-of<RequestPropertyInterface::ALL_TYPES> $type
+     *
+     * @return ($isList is true ? T[] : T)
+     *
+     * @throws ValidationException
+     */
+    private function validateAndHydrateChild(string $class, array $data, string $type, bool $isList = false): object|array
+    {
+        $rules = $this->extractRules(new $class())[$type] ?? [];
+        $hydrateList = [];
+
+        if (!$isList) {
+            $data = [$data];
+        }
+
+        foreach ($data as $item) {
+            $hydrateObject = new $class();
+            $this->hydrate(
+                object: $hydrateObject,
+                withData: $this->validateData(data: $item, rules: $rules),
+            );
+
+            $hydrateList[] = $hydrateObject;
+        }
+
+        return $isList ? $hydrateList : current($hydrateList);
+    }
+
+    private function validateAndHydrateEnum(string $enum, mixed $data, string $property): BackedEnum
+    {
+        try {
+            return $enum::from($data);
+        } catch (ValueError) {
+            throw ValidationException::withMessages([$property => sprintf(
+                'The %s field must be a valid enum (%s)',
+                $property,
+                implode(',', array_map(static fn ($en) => $en->value, $enum::cases()))
+            )]);
+        }
     }
 }
