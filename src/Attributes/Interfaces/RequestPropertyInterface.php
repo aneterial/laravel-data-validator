@@ -25,7 +25,7 @@ interface RequestPropertyInterface
     public function getHttpType(): string;
 
     /**
-     * @return null|class-string|'string'|'integer'|'float'
+     * @return null|class-string|enum-string|'string'|'integer'|'float'
      */
     public function getListType(): ?string;
 }

@@ -14,6 +14,11 @@ use ReflectionNamedType;
 use ReflectionProperty;
 use ValueError;
 
+/**
+ * @todo ListType - maybe rules
+ * @todo parse rules from all children at once
+ * @todo valid error field from nested properties
+ */
 final readonly class ValidationManager
 {
     public function __construct(private Factory $validationFactory)
@@ -21,6 +26,7 @@ final readonly class ValidationManager
     }
 
     /**
+     * @param Request $request
      * @param array<int|string, string|string[]> $queryRules
      * @param array<int|string, string|string[]> $postRules
      *
@@ -39,6 +45,7 @@ final readonly class ValidationManager
     /**
      * @template T of object
      *
+     * @param Request $request
      * @param class-string<T> $class
      *
      * @return T
@@ -65,9 +72,10 @@ final readonly class ValidationManager
     /**
      * @template T of object
      *
+     * @param Request $request
      * @param class-string<T> $class
      *
-     * @return T[]
+     * @return list<T>
      *
      * @throws ValidationException
      */
@@ -126,7 +134,11 @@ final readonly class ValidationManager
                 if ($attr instanceof RequestPropertyInterface) {
                     $rules[$attr->getHttpType()][$attr->getProperty()] = $attr->getRules();
 
-                    if (!is_null($attr->getListType()) && !class_exists($attr->getListType(), true)) {
+                    if (
+                        !is_null($attr->getListType())
+                        && !class_exists($attr->getListType(), true)
+                        && !enum_exists($attr->getListType(), true)
+                    ) {
                         $rules[$attr->getHttpType()][$attr->getProperty() . '.*'] = $attr->getListType();
                     }
                 }
@@ -138,6 +150,10 @@ final readonly class ValidationManager
 
     /**
      * @param array<int|string, mixed> $withData
+     *
+     * @return void
+     *
+     * @throws ValidationException
      */
     private function hydrate(object &$object, array $withData): void
     {
@@ -156,7 +172,13 @@ final readonly class ValidationManager
     }
 
     /**
+     * @param ReflectionProperty $property
+     * @param RequestPropertyInterface $attribute
      * @param array<int|string, mixed> $withData
+     *
+     * @return mixed
+     *
+     * @throws ValidationException
      */
     private function resolveValue(ReflectionProperty $property, RequestPropertyInterface $attribute, array $withData): mixed
     {
@@ -166,18 +188,28 @@ final readonly class ValidationManager
             : '';
 
         return match (true) {
-            is_null($data) => null,
-            enum_exists($typeName) => $this->validateAndHydrateEnum(
+            is_null($data) => $typeName === 'array' ? [] : null,
+            enum_exists($typeName, true) => $this->validateAndHydrateEnum(
                 enum: $typeName,
                 data: $data,
                 property: $attribute->getProperty()
             ),
-            class_exists($typeName) => $this->validateAndHydrateChild(
+            class_exists($typeName, true) => $this->validateAndHydrateChild(
                 class: $typeName,
                 data: $data,
                 type: $attribute->getHttpType()
             ),
-            $typeName === 'array' && class_exists($attribute->getListType(), true) => $this->validateAndHydrateChild(
+            $typeName === 'array'
+            && !is_null($attribute->getListType())
+            && enum_exists($attribute->getListType(), true) => $this->validateAndHydrateEnum(
+                enum: $attribute->getListType(),
+                data: $data,
+                property: $attribute->getProperty(),
+                isList: true
+            ),
+            $typeName === 'array'
+            && !is_null($attribute->getListType())
+            && class_exists($attribute->getListType(), true) => $this->validateAndHydrateChild(
                 class: $attribute->getListType(),
                 data: $data,
                 type: $attribute->getHttpType(),
@@ -193,8 +225,9 @@ final readonly class ValidationManager
      * @param class-string<T> $class
      * @param array<int|string, mixed> $data
      * @param value-of<RequestPropertyInterface::ALL_TYPES> $type
+     * @param bool $isList
      *
-     * @return ($isList is true ? T[] : T)
+     * @return ($isList is true ? list<T> : T)
      *
      * @throws ValidationException
      */
@@ -217,19 +250,38 @@ final readonly class ValidationManager
             $hydrateList[] = $hydrateObject;
         }
 
-        return $isList ? $hydrateList : current($hydrateList);
+        return $isList ? $hydrateList : reset($hydrateList);
     }
 
-    private function validateAndHydrateEnum(string $enum, mixed $data, string $property): BackedEnum
+    /**
+     * @param enum-string $enum
+     * @param mixed $data
+     * @param string $property
+     *
+     * @return ($isList is true ? list<BackedEnum> : BackedEnum)
+     *
+     * @throws ValidationException
+     */
+    private function validateAndHydrateEnum(string $enum, mixed $data, string $property, bool $isList = false): BackedEnum|array
     {
+        if (!$isList) {
+            $data = [$data];
+        }
+
+        $result = [];
+
         try {
-            return $enum::from($data);
+            foreach ($data as $item) {
+                $result[] = $enum::from($item);
+            }
         } catch (ValueError) {
             throw ValidationException::withMessages([$property => sprintf(
                 'The %s field must be a valid enum (%s)',
                 $property,
-                implode(',', array_map(static fn ($en) => $en->value, $enum::cases()))
+                implode(',', array_map(static fn ($en): int|string => $en->value, $enum::cases()))
             )]);
         }
+
+        return $isList ? $result : reset($result);
     }
 }

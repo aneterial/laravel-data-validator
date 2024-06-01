@@ -12,7 +12,7 @@ final readonly class RequestProperty implements RequestPropertyInterface
 {
     /**
      * @param value-of<RequestPropertyInterface::ALL_TYPES> $httpType
-     * @param null|class-string|'string'|'integer'|'float'  $listType
+     * @param null|class-string|enum-string|'string'|'integer'|'float'  $listType
      */
     public function __construct(
         private string $property,
