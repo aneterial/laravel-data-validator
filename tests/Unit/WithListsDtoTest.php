@@ -29,7 +29,7 @@ final class WithListsDtoTest extends TestCase
 
         $dto = $this->dataManager->validateAndConvert(from: $req, to: WithListsDTO::class);
 
-        $this->assertInstanceOf(expected: WithListsDto::class, actual: $dto);
+        $this->assertInstanceOf(expected: WithListsDTO::class, actual: $dto);
         $this->assertSame(expected: $postData['cities'], actual: $dto->cities);
         $this->assertSame(expected: $postData['codes'], actual: $dto->codes);
         $this->assertSame(expected: $postData['emails'], actual: $dto->emails);
