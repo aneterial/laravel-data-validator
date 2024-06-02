@@ -1,0 +1,40 @@
+name: CI Tests
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+      with:
+        php-version: '8.2'
+
+    - uses: actions/checkout@v4
+
+    - name: Install new laravel 11 project
+      run: composer create-project laravel/laravel:11 app
+
+    - name: Install latest package version
+      working-directory: ./app
+      run: composer require aneterial/laravel-data-validator
+
+    - name: Copy current source code to vendor
+      run:  cp -r src/* app/vendor/aneterial/laravel-data-validator/src
+
+    - name: Copy current tests to laravel project
+      run: |
+        rm -fr app/tests/*
+        cp -r tests/* app/tests
+        cp phpunit.xml app/
+
+    - name: Run Tests
+      working-directory: ./app
+      run: php artisan test
