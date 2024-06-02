@@ -15,7 +15,7 @@ use ValueError;
 final readonly class DataConverter
 {
     /**
-     * @template T
+     * @template T of object
      *
      * @param class-string<T> $to
      * @param array<int|string, mixed> $from
@@ -53,7 +53,7 @@ final readonly class DataConverter
             $convertedList[] = $convertedObject;
         }
 
-        return $isList ? $convertedList : reset($convertedList);
+        return $isList ? $convertedList : $convertedList[0];
     }
 
     /**
