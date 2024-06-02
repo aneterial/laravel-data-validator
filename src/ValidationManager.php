@@ -15,7 +15,6 @@ use ReflectionProperty;
 use ValueError;
 
 /**
- * @todo ListType - maybe rules
  * @todo parse rules from all children at once
  * @todo valid error field from nested properties
  */
@@ -62,7 +61,7 @@ final readonly class ValidationManager
             withData: $this->validate(
                 request: $request,
                 queryRules: $rules[RequestPropertyInterface::QUERY_TYPE] ?? [],
-                postRules: $rules[RequestPropertyInterface::POST_TYPE] ?? []
+                postRules: $rules[RequestPropertyInterface::BODY_TYPE] ?? []
             )
         );
 
@@ -84,8 +83,8 @@ final readonly class ValidationManager
         $rules = $this->extractRules(new $class());
         $hydrateList = [];
 
-        $data = (array)(empty($rules[RequestPropertyInterface::POST_TYPE]) ? $request->query() : $request->post());
-        $dataRules = $rules[RequestPropertyInterface::POST_TYPE] ?? $rules[RequestPropertyInterface::QUERY_TYPE] ?? [];
+        $data = (array)(empty($rules[RequestPropertyInterface::BODY_TYPE]) ? $request->query() : $request->post());
+        $dataRules = $rules[RequestPropertyInterface::BODY_TYPE] ?? $rules[RequestPropertyInterface::QUERY_TYPE] ?? [];
 
         foreach ($data as $item) {
             $hydrateObject = new $class();
@@ -121,9 +120,11 @@ final readonly class ValidationManager
     }
 
     /**
+     * @param value-of<RequestPropertyInterface::ALL_TYPES> $forceType
+     *
      * @return array<string, array<int|string, string>>
      */
-    private function extractRules(object $fromObject): array
+    private function extractRules(object $fromObject, ?string $forceType = null): array
     {
         $rules = [];
 
@@ -132,14 +133,15 @@ final readonly class ValidationManager
                 $attr = $attribute->newInstance();
 
                 if ($attr instanceof RequestPropertyInterface) {
-                    $rules[$attr->getHttpType()][$attr->getProperty()] = $attr->getRules();
+                    $dataType = $forceType ?? $attr->getRequestDataType();
+                    $rules[$dataType][$attr->getProperty()] = $attr->getRules();
 
                     if (
-                        !is_null($attr->getListType())
-                        && !class_exists($attr->getListType(), true)
-                        && !enum_exists($attr->getListType(), true)
+                        !is_null($attr->getListRules())
+                        && !class_exists($attr->getListRules(), true)
+                        && !enum_exists($attr->getListRules(), true)
                     ) {
-                        $rules[$attr->getHttpType()][$attr->getProperty() . '.*'] = $attr->getListType();
+                        $rules[$dataType][$attr->getProperty() . '.*'] = $attr->getListRules();
                     }
                 }
             }
@@ -197,22 +199,22 @@ final readonly class ValidationManager
             class_exists($typeName, true) => $this->validateAndHydrateChild(
                 class: $typeName,
                 data: $data,
-                type: $attribute->getHttpType()
+                type: $attribute->getRequestDataType()
             ),
             $typeName === 'array'
-            && !is_null($attribute->getListType())
-            && enum_exists($attribute->getListType(), true) => $this->validateAndHydrateEnum(
-                enum: $attribute->getListType(),
+            && !is_null($attribute->getListRules())
+            && enum_exists($attribute->getListRules(), true) => $this->validateAndHydrateEnum(
+                enum: $attribute->getListRules(),
                 data: $data,
                 property: $attribute->getProperty(),
                 isList: true
             ),
             $typeName === 'array'
-            && !is_null($attribute->getListType())
-            && class_exists($attribute->getListType(), true) => $this->validateAndHydrateChild(
-                class: $attribute->getListType(),
+            && !is_null($attribute->getListRules())
+            && class_exists($attribute->getListRules(), true) => $this->validateAndHydrateChild(
+                class: $attribute->getListRules(),
                 data: $data,
-                type: $attribute->getHttpType(),
+                type: $attribute->getRequestDataType(),
                 isList: true
             ),
             default => $data
@@ -233,7 +235,7 @@ final readonly class ValidationManager
      */
     private function validateAndHydrateChild(string $class, array $data, string $type, bool $isList = false): object|array
     {
-        $rules = $this->extractRules(new $class())[$type] ?? [];
+        $rules = $this->extractRules(fromObject: new $class(), forceType: $type)[$type] ?? [];
         $hydrateList = [];
 
         if (!$isList) {

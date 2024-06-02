@@ -11,14 +11,16 @@ use DataValidator\Attributes\Interfaces\RequestPropertyInterface;
 final readonly class RequestProperty implements RequestPropertyInterface
 {
     /**
-     * @param value-of<RequestPropertyInterface::ALL_TYPES> $httpType
-     * @param null|class-string|enum-string|'string'|'integer'|'float'  $listType
+     * @param literal-string                                $property
+     * @param literal-string                                $rules
+     * @param value-of<RequestPropertyInterface::ALL_TYPES> $requestDataType
+     * @param null|class-string|enum-string|literal-string  $listRules
      */
     public function __construct(
         private string $property,
         private string $rules,
-        private string $httpType = self::POST_TYPE,
-        private ?string $listType = null,
+        private string $requestDataType = self::BODY_TYPE,
+        private ?string $listRules = null,
     ) {
     }
 
@@ -32,13 +34,13 @@ final readonly class RequestProperty implements RequestPropertyInterface
         return $this->rules;
     }
 
-    public function getHttpType(): string
+    public function getRequestDataType(): string
     {
-        return $this->httpType;
+        return $this->requestDataType;
     }
 
-    public function getListType(): ?string
+    public function getListRules(): ?string
     {
-        return $this->listType;
+        return $this->listRules;
     }
 }
