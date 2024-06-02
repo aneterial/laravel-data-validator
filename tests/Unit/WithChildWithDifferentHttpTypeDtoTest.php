@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $queryData
@@ -29,7 +29,7 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
     {
         $req = new Request(query: $queryData, request: $postData);
 
-        $dto = $this->validationManager->validateAndHydrate(request: $req, class: WithChildWithDifferentHttpTypeDTO::class);
+        $dto = $this->dataManager->validateAndConvert(from: $req, to: WithChildWithDifferentHttpTypeDTO::class);
 
         $this->assertInstanceOf(expected: WithChildWithDifferentHttpTypeDTO::class, actual: $dto);
         $this->assertSame(expected: $queryData['uid'], actual: $dto->uid);
@@ -56,7 +56,7 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
         $req = new Request(query: $queryData, request: $postData);
 
         try {
-            $this->validationManager->validateAndHydrate(request: $req, class: WithChildWithDifferentHttpTypeDTO::class);
+            $this->dataManager->validateAndConvert(from: $req, to: WithChildWithDifferentHttpTypeDTO::class);
         } catch (ValidationException $e) {
             $this->assertSame(expected: $invalidKeys, actual: array_keys($e->errors()));
         } finally {
@@ -115,7 +115,6 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
                     'uid' => 10,
                     'child' => [
                         'is_active' => 1,
-
                     ],
                 ],
                 'postData' => [
@@ -126,7 +125,7 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
                         'birthday' => '2000-01-01 12:00:00'
                     ],
                 ],
-                'invalidKeys' => ['is_active']
+                'invalidKeys' => ['child.is_active']
             ],
             'data_in_wrong_place_2' => [
                 'queryData' => [
@@ -143,12 +142,11 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
                         'birthday' => '2000-01-01 12:00:00'
                     ],
                 ],
-                'invalidKeys' => ['percent']
+                'invalidKeys' => ['child.percent']
             ],
             'invalid_data_values' => [
                 'queryData' => [
                     'uid' => 5,
-
                 ],
                 'postData' => [
                     'child' => [
@@ -159,11 +157,11 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
                         'birthday' => '1990-12-24 06:34:00'
                     ],
                 ],
-                'invalidKeys' => ['email', 'percent']
+                'invalidKeys' => ['child.email', 'child.percent']
             ],
             'invalid_data_types' => [
                 'queryData' => [
-                    'uid' => 'some id',
+                    'uid' => 6,
                 ],
                 'postData' => [
                     'child' => [
@@ -174,7 +172,7 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
                         'birthday' => true
                     ],
                 ],
-                'invalidKeys' => ['uid']
+                'invalidKeys' => ['child.email', 'child.is_active', 'child.birthday']
             ],
             'empty_data_values' => [
                 'queryData' => [
@@ -186,7 +184,7 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
                         'email' => 'test@mail.com',
                     ]
                 ],
-                'invalidKeys' => ['id', 'percent', 'birthday']
+                'invalidKeys' => ['child.id', 'child.percent', 'child.birthday']
             ],
         ];
     }
@@ -194,12 +192,12 @@ final class WithChildWithDifferentHttpTypeDtoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 final class BaseValidationTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $queryData
@@ -41,7 +41,7 @@ final class BaseValidationTest extends TestCase
 
         $req = new Request(query: $queryData, request: $postData);
 
-        $result = $this->validationManager->validate(request: $req, queryRules: $queryRules, postRules: $postRules);
+        $result = $this->dataManager->validate(request: $req, queryRules: $queryRules, bodyRules: $postRules);
 
         if (!$expectException) {
             $this->assertSame(expected: $data, actual: $result);
@@ -109,12 +109,12 @@ final class BaseValidationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }

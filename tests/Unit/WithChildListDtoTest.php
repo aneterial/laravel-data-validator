@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 final class WithChildListDtoTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $postData
@@ -28,7 +28,7 @@ final class WithChildListDtoTest extends TestCase
     {
         $req = new Request(request: $postData);
 
-        $dto = $this->validationManager->validateAndHydrate(request: $req, class: WithChildListDTO::class);
+        $dto = $this->dataManager->validateAndConvert(from: $req, to: WithChildListDTO::class);
 
         $this->assertInstanceOf(expected: WithChildListDTO::class, actual: $dto);
         $this->assertSame(expected: $postData['uid'], actual: $dto->uid);
@@ -58,7 +58,7 @@ final class WithChildListDtoTest extends TestCase
         $req = new Request(query: $queryData, request: $postData);
 
         try {
-            $this->validationManager->validateAndHydrate(request: $req, class: WithChildListDTO::class);
+            $this->dataManager->validateAndConvert(from: $req, to: WithChildListDTO::class);
         } catch (ValidationException $e) {
             $this->assertSame(expected: $invalidKeys, actual: array_keys($e->errors()));
         } finally {
@@ -131,6 +131,11 @@ final class WithChildListDtoTest extends TestCase
                             'id' => 1,
                             'email' => 'test@mail.com',
                         ],
+                        [
+                            'is_active' => 1,
+                            'birthday' => '2000-01-01 12:00:00',
+
+                        ],
                     ],
                 ],
                 'postData' => [
@@ -141,9 +146,14 @@ final class WithChildListDtoTest extends TestCase
                             'percent' => '10.21',
                             'birthday' => '2000-01-01 12:00:00'
                         ],
+                        [
+                            'id' => 1,
+                            'percent' => '10.21',
+                            'email' => 'test@mail.com',
+                        ],
                     ],
                 ],
-                'invalidKeys' => ['id', 'email']
+                'invalidKeys' => ['children.0.id', 'children.0.email', 'children.1.is_active', 'children.1.birthday']
             ],
             'invalid_data_values' => [
                 'queryData' => [],
@@ -157,9 +167,16 @@ final class WithChildListDtoTest extends TestCase
                             'percent' => 45.4,
                             'birthday' => '1990-12-24 06:34:00'
                         ],
+                        [
+                            'id' => 123,
+                            'email' => 'test@mail.com',
+                            'is_active' => 1,
+                            'percent' => 45.42,
+                            'birthday' => '19902222-12-24 06:34:00'
+                        ],
                     ],
                 ],
-                'invalidKeys' => ['email', 'percent']
+                'invalidKeys' => ['children.0.email', 'children.0.percent', 'children.1.birthday']
             ],
             'invalid_data_types' => [
                 'queryData' => [],
@@ -173,9 +190,16 @@ final class WithChildListDtoTest extends TestCase
                             'percent' => 45.42,
                             'birthday' => true
                         ],
+                        [
+                            'id' => 23,
+                            'email' => 'test@mail.com',
+                            'is_active' => true,
+                            'percent' => 45.42,
+                            'birthday' => 4444
+                        ],
                     ],
                 ],
-                'invalidKeys' => ['id', 'email', 'birthday']
+                'invalidKeys' => ['children.0.id', 'children.0.email', 'children.0.birthday', 'children.1.birthday']
             ],
             'empty_data_values' => [
                 'queryData' => [],
@@ -187,9 +211,12 @@ final class WithChildListDtoTest extends TestCase
                             'email' => 'test@mail.com',
                             'is_active' => true,
                         ],
+                        [
+                            'birthday' => '1990-12-24 06:34:00'
+                        ],
                     ],
                 ],
-                'invalidKeys' => ['percent', 'birthday']
+                'invalidKeys' => ['children.1.id', 'children.1.email', 'children.1.is_active', 'children.0.percent', 'children.1.percent', 'children.0.birthday',]
             ],
         ];
     }
@@ -197,12 +224,12 @@ final class WithChildListDtoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }

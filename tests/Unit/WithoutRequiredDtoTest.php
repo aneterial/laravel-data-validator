@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 final class WithoutRequiredDtoTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $postData
@@ -27,7 +27,7 @@ final class WithoutRequiredDtoTest extends TestCase
     {
         $req = new Request(request: $postData);
 
-        $dto = $this->validationManager->validateAndHydrate(request: $req, class: WithoutRequiredDTO::class);
+        $dto = $this->dataManager->validateAndConvert(from: $req, to: WithoutRequiredDTO::class);
 
         $this->assertInstanceOf(expected: WithoutRequiredDTO::class, actual: $dto);
         $this->assertSame(expected: $postData['id'] ?? null, actual: $dto->id);
@@ -52,7 +52,7 @@ final class WithoutRequiredDtoTest extends TestCase
         $req = new Request(query: $queryData, request: $postData);
 
         try {
-            $this->validationManager->validateAndHydrate(request: $req, class: WithoutRequiredDTO::class);
+            $this->dataManager->validateAndConvert(from: $req, to: WithoutRequiredDTO::class);
         } catch (ValidationException $e) {
             $this->assertSame(expected: $invalidKeys, actual: array_keys($e->errors()));
         } finally {
@@ -164,12 +164,12 @@ final class WithoutRequiredDtoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }
