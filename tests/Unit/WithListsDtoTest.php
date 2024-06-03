@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 final class WithListsDtoTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $postData
@@ -27,9 +27,9 @@ final class WithListsDtoTest extends TestCase
     {
         $req = new Request(request: $postData);
 
-        $dto = $this->validationManager->validateAndHydrate(request: $req, class: WithListsDTO::class);
+        $dto = $this->dataManager->validateAndConvert(from: $req, to: WithListsDTO::class);
 
-        $this->assertInstanceOf(expected: WithListsDto::class, actual: $dto);
+        $this->assertInstanceOf(expected: WithListsDTO::class, actual: $dto);
         $this->assertSame(expected: $postData['cities'], actual: $dto->cities);
         $this->assertSame(expected: $postData['codes'], actual: $dto->codes);
         $this->assertSame(expected: $postData['emails'], actual: $dto->emails);
@@ -51,7 +51,7 @@ final class WithListsDtoTest extends TestCase
         $req = new Request(query: $queryData, request: $postData);
 
         try {
-            $this->validationManager->validateAndHydrate(request: $req, class: WithListsDTO::class);
+            $this->dataManager->validateAndConvert(from: $req, to: WithListsDTO::class);
         } catch (ValidationException $e) {
             $this->assertSame(expected: $invalidKeys, actual: array_keys($e->errors()));
         } finally {
@@ -144,12 +144,12 @@ final class WithListsDtoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }

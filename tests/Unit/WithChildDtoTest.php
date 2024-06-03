@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 final class WithChildDtoTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $postData
@@ -28,7 +28,7 @@ final class WithChildDtoTest extends TestCase
     {
         $req = new Request(request: $postData);
 
-        $dto = $this->validationManager->validateAndHydrate(request: $req, class: WithChildDTO::class);
+        $dto = $this->dataManager->validateAndConvert(from: $req, to: WithChildDTO::class);
 
         $this->assertInstanceOf(expected: WithChildDTO::class, actual: $dto);
         $this->assertSame(expected: $postData['uid'], actual: $dto->uid);
@@ -55,7 +55,7 @@ final class WithChildDtoTest extends TestCase
         $req = new Request(query: $queryData, request: $postData);
 
         try {
-            $this->validationManager->validateAndHydrate(request: $req, class: WithChildDTO::class);
+            $this->dataManager->validateAndConvert(from: $req, to: WithChildDTO::class);
         } catch (ValidationException $e) {
             $this->assertSame(expected: $invalidKeys, actual: array_keys($e->errors()));
         } finally {
@@ -105,20 +105,20 @@ final class WithChildDtoTest extends TestCase
         return [
             'data_in_wrong_place' => [
                 'queryData' => [
+                    'uid' => 10,
                     'child' => [
                         'id' => 1,
                         'email' => 'test@mail.com',
                     ],
                 ],
                 'postData' => [
-                    'uid' => 10,
                     'child' => [
                         'is_active' => 1,
                         'percent' => '10.21',
                         'birthday' => '2000-01-01 12:00:00'
                     ],
                 ],
-                'invalidKeys' => ['id', 'email']
+                'invalidKeys' => ['uid', 'child.id', 'child.email']
             ],
             'invalid_data_values' => [
                 'queryData' => [],
@@ -132,12 +132,12 @@ final class WithChildDtoTest extends TestCase
                         'birthday' => '1990-12-24 06:34:00'
                     ],
                 ],
-                'invalidKeys' => ['email', 'percent']
+                'invalidKeys' => ['child.email', 'child.percent']
             ],
             'invalid_data_types' => [
                 'queryData' => [],
                 'postData' => [
-                    'uid' => 4,
+                    'uid' => 'hello',
                     'child' => [
                         'id' => 'some id',
                         'email' => 10,
@@ -146,7 +146,7 @@ final class WithChildDtoTest extends TestCase
                         'birthday' => true
                     ],
                 ],
-                'invalidKeys' => ['id', 'email', 'birthday']
+                'invalidKeys' => ['uid', 'child.id', 'child.email', 'child.birthday']
             ],
             'empty_data_values' => [
                 'queryData' => [],
@@ -158,7 +158,7 @@ final class WithChildDtoTest extends TestCase
                         'is_active' => true,
                     ],
                 ],
-                'invalidKeys' => ['percent', 'birthday']
+                'invalidKeys' => ['child.percent', 'child.birthday']
             ],
         ];
     }
@@ -166,12 +166,12 @@ final class WithChildDtoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }

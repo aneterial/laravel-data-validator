@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use DataValidator\ValidationManager;
+use DataValidator\DataManager;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 final class WithEnumsListDtoTest extends TestCase
 {
-    private ?ValidationManager $validationManager = null;
+    private ?DataManager $dataManager = null;
 
     /**
      * @param array<string, mixed> $postData
@@ -28,7 +28,7 @@ final class WithEnumsListDtoTest extends TestCase
     {
         $req = new Request(request: $postData);
 
-        $dto = $this->validationManager->validateAndHydrate(request: $req, class: WithEnumsListDTO::class);
+        $dto = $this->dataManager->validateAndConvert(from: $req, to: WithEnumsListDTO::class);
 
         $this->assertInstanceOf(expected: WithEnumsListDTO::class, actual: $dto);
         $this->assertSame(expected: $postData['id'], actual: $dto->id);
@@ -54,7 +54,7 @@ final class WithEnumsListDtoTest extends TestCase
         $req = new Request(query: $queryData, request: $postData);
 
         try {
-            $this->validationManager->validateAndHydrate(request: $req, class: WithEnumsListDTO::class);
+            $this->dataManager->validateAndConvert(from: $req, to: WithEnumsListDTO::class);
         } catch (ValidationException $e) {
             $this->assertSame(expected: $invalidKeys, actual: array_keys($e->errors()));
         } finally {
@@ -107,7 +107,7 @@ final class WithEnumsListDtoTest extends TestCase
                     'id' => 5,
                     'colors' => ['#ffffff', 'red'],
                 ],
-                'invalidKeys' => ['colors']
+                'invalidKeys' => ['colors.1']
             ],
             'invalid_data_types' => [
                 'queryData' => [],
@@ -130,12 +130,12 @@ final class WithEnumsListDtoTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validationManager = $this->app->make(ValidationManager::class);
+        $this->dataManager = $this->app->make(DataManager::class);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->validationManager = null;
+        $this->dataManager = null;
     }
 }
