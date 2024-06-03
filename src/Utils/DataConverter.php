@@ -44,7 +44,7 @@ final readonly class DataConverter
                         $property->setValue($convertedObject, $this->resolveValue(
                             property: $property,
                             attribute: $attr,
-                            from: $data
+                            from: (array) $data
                         ));
                     }
                 }
