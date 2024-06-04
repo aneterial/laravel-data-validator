@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace DataValidator;
 
 use DataValidator\Attributes\Interfaces\RequestPropertyInterface;
+use DataValidator\Interfaces\DataManagerInterface;
 use DataValidator\Utils\DataConverter;
 use DataValidator\Utils\RulesExtractor;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
-final readonly class DataManager
+final readonly class DataManager implements DataManagerInterface
 {
     public function __construct(
         private Factory        $validationFactory,
@@ -20,15 +21,6 @@ final readonly class DataManager
     ) {
     }
 
-    /**
-     * @param Request $request
-     * @param array<int|string, string|string[]> $queryRules
-     * @param array<int|string, string|string[]> $bodyRules
-     *
-     * @return array<int|string, mixed>
-     *
-     * @throws ValidationException
-     */
     public function validate(Request $request, array $queryRules = [], array $bodyRules = []): array
     {
         $queryData = empty($queryRules) ? [] : $this->validateData(data: (array)$request->query(), rules: $queryRules);
@@ -37,16 +29,6 @@ final readonly class DataManager
         return array_merge($queryData, $postData);
     }
 
-    /**
-     * @template T of object
-     *
-     * @param Request $from
-     * @param class-string<T> $to
-     *
-     * @return T
-     *
-     * @throws ValidationException
-     */
     public function validateAndConvert(Request $from, string $to): object
     {
         $rules = $this->rulesExtractor->extractRules($to);
@@ -61,18 +43,6 @@ final readonly class DataManager
         );
     }
 
-    /**
-     * List method only supports body data type, query type of properties is ignoring
-     *
-     * @template T of object
-     *
-     * @param Request $from
-     * @param class-string<T> $to
-     *
-     * @return list<T>
-     *
-     * @throws ValidationException
-     */
     public function validateAndConvertList(Request $from, string $to): array
     {
         $rules = $this->rulesExtractor->extractRules(
